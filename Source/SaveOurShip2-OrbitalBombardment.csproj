@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0"
+    xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+        <Platform>AnyCPU</Platform>
+        <ProjectGuid>{B0DFE6C1-9F92-4D34-ACB2-7C5D9290B5F5}</ProjectGuid>
+        <OutputType>Library</OutputType>
+        <AppDesignerFolder>Properties</AppDesignerFolder>
+        <RootNamespace>SaveOurShip2_OrbitalBombardment</RootNamespace>
+        <AssemblyName>SaveOurShip2-OrbitalBombardment</AssemblyName>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+        <LangVersion>latest</LangVersion>
+        <FileAlignment>512</FileAlignment>
+        <Deterministic>true</Deterministic>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+        <Optimize>true</Optimize>
+        <DebugType>pdbonly</DebugType>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+        <Prefer32Bit>false</Prefer32Bit>
+        <OutputPath>..\1.6\Assemblies\</OutputPath>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="System" />
+        <Reference Include="Assembly-CSharp">
+            <HintPath>..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>..\..\..\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine">
+            <HintPath>..\..\..\RimWorldWin64_Data\Managed\UnityEngine.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.IMGUIModule">
+            <HintPath>..\..\..\RimWorldWin64_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.InputLegacyModule">
+            <HintPath>..\..\..\RimWorldWin64_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="0Harmony">
+            <HintPath>..\..\..\..\..\workshop\content\294100\2009463077\Current\Assemblies\0Harmony.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="SaveOurShip2">
+            <HintPath>..\..\SaveOurShip2-super_unstable\1.6\Assemblies\ShipsHaveInsides.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="ModStartup.cs" />
+        <Compile Include="OBMod.cs" />
+        <Compile Include="Patches_TurretGizmo.cs" />
+        <Compile Include="Patches_RegisterProjectileRedirect.cs" />
+        <Compile Include="OrbitalBombardmentManager.cs" />
+        <Compile Include="OrbitalBombardmentMapOverlay.cs" />
+        <Compile Include="OrbitalBeamDefExtension.cs" />
+        <Compile Include="MovingPowerBeamExtension.cs" />
+        <Compile Include="MovingPowerBeam.cs" />
+        <Compile Include="ProjectileTerrainDeformRegistry.cs" />
+    </ItemGroup>
+    <Target Name="PruneOutput" AfterTargets="Build">
+        <ItemGroup>
+            <_AllFiles Include="$(OutputPath)*.*" />
+            <_Keep Include="$(OutputPath)$(AssemblyName).dll;$(OutputPath)$(AssemblyName).pdb" />
+            <_ToDelete Include="@(_AllFiles)" Exclude="@(_Keep)" />
+        </ItemGroup>
+        <Delete Files="@(_ToDelete)" />
+    </Target>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

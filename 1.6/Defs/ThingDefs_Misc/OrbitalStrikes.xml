@@ -1,0 +1,178 @@
+<Defs>
+    <ThingDef ParentName="OrbitalStrikeBase">
+        <defName>PowerBeamSpinalLaser</defName>
+        <label>power beam</label>
+        <thingClass>SaveOurShip2_OrbitalBombardment.MovingPowerBeam</thingClass>
+        <comps>
+            <li Class="CompProperties_OrbitalBeam">
+                <width>14</width>
+                <color>(255, 0, 0, 245)</color>
+                <sound>OrbitalBeam</sound>
+            </li>
+            <li Class="CompProperties_CameraShaker">
+                <mag>0.06</mag>
+            </li>
+            <li Class="CompProperties_AffectsSky">
+                <skyColors>
+                    <sky>(255, 0, 0)</sky>
+                    <shadow>(60, 100, 150)</shadow>
+                    <overlay>(255, 255, 255)</overlay>
+                    <saturation>1.9</saturation>
+                </skyColors>
+            </li>
+        </comps>
+        <modExtensions>
+            <li Class="SaveOurShip2_OrbitalBombardment.MovingPowerBeamExtension">
+                <enableMovement>true</enableMovement>
+                <path>arc</path>
+                <arcBulgeFactor>0.35</arcBulgeFactor>
+                <speedCellsPerSec>2.6</speedCellsPerSec>
+                <explosionEveryTicks>20</explosionEveryTicks>
+                <explosionRadius>2.5</explosionRadius>
+                <explosionDamage>45</explosionDamage>
+                <explosionDamageDef>Bomb</explosionDamageDef>
+            </li>
+        </modExtensions>
+    </ThingDef>
+
+    <ThingDef ParentName="OrbitalStrikeBase">
+        <defName>PowerBeamLaser</defName>
+        <label>power beam</label>
+        <thingClass>SaveOurShip2_OrbitalBombardment.MovingPowerBeam</thingClass>
+        <comps>
+            <li Class="CompProperties_OrbitalBeam">
+                <width>3</width>
+                <color>(255, 0, 0, 245)</color>
+                <sound>OrbitalBeam</sound>
+            </li>
+            <li Class="CompProperties_CameraShaker">
+                <mag>0.06</mag>
+            </li>
+            <li Class="CompProperties_AffectsSky">
+                <skyColors>
+                    <sky>(255, 0, 0)</sky>
+                    <shadow>(60, 100, 150)</shadow>
+                    <overlay>(255, 255, 255)</overlay>
+                    <saturation>0.7</saturation>
+                </skyColors>
+            </li>
+        </comps>
+        <modExtensions>
+            <li Class="SaveOurShip2_OrbitalBombardment.MovingPowerBeamExtension">
+                <enableMovement>true</enableMovement>
+                <path>arc</path>
+                <speedCellsPerSec>4.2</speedCellsPerSec>
+                <explosionEveryTicks>40</explosionEveryTicks>
+                <explosionRadius>1.6</explosionRadius>
+                <explosionDamage>25</explosionDamage>
+                <explosionDamageDef>Bomb</explosionDamageDef>
+            </li>
+        </modExtensions>
+    </ThingDef>
+
+    <ThingDef ParentName="OrbitalStrikeBase">
+        <defName>PowerBeamLaserSmall</defName>
+        <label>power beam</label>
+        <thingClass>SaveOurShip2_OrbitalBombardment.MovingPowerBeam</thingClass>
+        <comps>
+            <li Class="CompProperties_OrbitalBeam">
+                <width>1</width>
+                <color>(255, 0, 0, 245)</color>
+                <sound>OrbitalBeam</sound>
+            </li>
+            <li Class="CompProperties_CameraShaker">
+                <mag>0.06</mag>
+            </li>
+            <li Class="CompProperties_AffectsSky">
+                <skyColors>
+                    <sky>(255, 0, 0)</sky>
+                    <shadow>(60, 100, 150)</shadow>
+                    <overlay>(255, 255, 255)</overlay>
+                    <saturation>0.4</saturation>
+                </skyColors>
+            </li>
+        </comps>
+        <modExtensions>
+            <li Class="SaveOurShip2_OrbitalBombardment.MovingPowerBeamExtension">
+                <enableMovement>true</enableMovement>
+                <path>arc</path>
+                <speedCellsPerSec>8.2</speedCellsPerSec>
+                <explosionEveryTicks>50</explosionEveryTicks>
+                <explosionRadius>1.2</explosionRadius>
+                <explosionDamage>18</explosionDamage>
+                <explosionDamageDef>Bomb</explosionDamageDef>
+            </li>
+        </modExtensions>
+    </ThingDef>
+
+    <ThingDef ParentName="OrbitalStrikeBase">
+        <defName>PowerBeamSpinalLance</defName>
+        <label>power beam</label>
+        <thingClass>SaveOurShip2_OrbitalBombardment.MovingPowerBeam</thingClass>
+        <comps>
+            <li Class="CompProperties_OrbitalBeam">
+                <width>9</width>
+                <color>(180, 220, 255, 245)</color>
+                <sound>OrbitalBeam</sound>
+            </li>
+            <li Class="CompProperties_CameraShaker">
+                <mag>0.06</mag>
+            </li>
+            <li Class="CompProperties_AffectsSky">
+                <skyColors>
+                    <sky>(180, 220, 255)</sky>
+                    <shadow>(60, 100, 150)</shadow>
+                    <overlay>(255, 255, 255)</overlay>
+                    <saturation>1.9</saturation>
+                </skyColors>
+            </li>
+        </comps>
+        <modExtensions>
+            <li Class="SaveOurShip2_OrbitalBombardment.MovingPowerBeamExtension">
+                <enableMovement>true</enableMovement>
+                <path>arc</path>
+                <arcBulgeFactor>0.35</arcBulgeFactor>
+                <speedCellsPerSec>2.8</speedCellsPerSec>
+                <explosionEveryTicks>20</explosionEveryTicks>
+                <explosionRadius>2.7</explosionRadius>
+                <explosionDamage>48</explosionDamage>
+                <explosionDamageDef>Bomb</explosionDamageDef>
+            </li>
+        </modExtensions>
+    </ThingDef>
+
+    <ThingDef ParentName="OrbitalStrikeBase">
+        <defName>PowerBeamLance</defName>
+        <label>power beam</label>
+        <thingClass>SaveOurShip2_OrbitalBombardment.MovingPowerBeam</thingClass>
+        <comps>
+            <li Class="CompProperties_OrbitalBeam">
+                <width>3</width>
+                <color>(180, 220, 255, 245)</color>
+                <sound>OrbitalBeam</sound>
+            </li>
+            <li Class="CompProperties_CameraShaker">
+                <mag>0.06</mag>
+            </li>
+            <li Class="CompProperties_AffectsSky">
+                <skyColors>
+                    <sky>(180, 220, 255)</sky>
+                    <shadow>(60, 100, 150)</shadow>
+                    <overlay>(255, 255, 255)</overlay>
+                    <saturation>0.7</saturation>
+                </skyColors>
+            </li>
+        </comps>
+        <modExtensions>
+            <li Class="SaveOurShip2_OrbitalBombardment.MovingPowerBeamExtension">
+                <enableMovement>true</enableMovement>
+                <path>arc</path>
+                <speedCellsPerSec>3.2</speedCellsPerSec>
+                <explosionEveryTicks>40</explosionEveryTicks>
+                <explosionRadius>1.8</explosionRadius>
+                <explosionDamage>28</explosionDamage>
+                <explosionDamageDef>Bomb</explosionDamageDef>
+            </li>
+        </modExtensions>
+    </ThingDef>
+</Defs>

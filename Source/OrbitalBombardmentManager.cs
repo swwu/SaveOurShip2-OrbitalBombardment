@@ -1,185 +1,409 @@
+using System;
 using System.Collections.Generic;
-using Verse;
+using System.Linq;
 using RimWorld;
+using RimWorld.Planet;
 using SaveOurShip2;
 using UnityEngine;
-using RimWorld.Planet;
+using Verse;
 
 namespace SaveOurShip2_OrbitalBombardment
 {
-    public class OrbitalBombardmentManager : MapComponent
+    public class OrbitalBombardmentManager : GameComponent
     {
-        private struct PendingShot
+        private const float OrbitalProjectileForcedMissRadius = 35f; // Higher forced miss for shells/projectiles
+        private const float OrbitalLaserForcedMissRadius = 18f; // Lower forced miss to reflect laser accuracy
+        private const float LaserTravelTimePerTile = 10f; // Faster travel for lasers
+        private const float ProjectileTravelTimePerTile = 60f; // Default travel for projectiles
+                                                               // Prevent early-arriving laser groups from spawning before the full burst has a chance to enqueue
+        private const int LaserMergeWindowTicks = 150; // ~2.5s at 60 TPS; adjust if bursts are longer/shorter
+
+        public class PendingBombardment : IExposable
         {
-            public Building_ShipTurret turret;
+            public int targetTile;
             public Map targetMap;
             public IntVec3 targetCell;
-            public int ticksUntilFire;
-            public int burstCount;
+            public ThingDef projectileDef;
+            public float missRadius;
+            public bool isLaser;
+            public int accBoost;
+            public IntVec3 burstLoc;
+            public Building_ShipTurret launcherTurret;
+            public int ticksRemaining;
+
+            public void ExposeData()
+            {
+                Scribe_Values.Look(ref targetTile, nameof(targetTile));
+                Scribe_References.Look(ref targetMap, nameof(targetMap));
+                Scribe_Values.Look(ref targetCell, nameof(targetCell));
+                Scribe_Defs.Look(ref projectileDef, nameof(projectileDef));
+                Scribe_Values.Look(ref missRadius, nameof(missRadius));
+                Scribe_Values.Look(ref isLaser, nameof(isLaser));
+                Scribe_Values.Look(ref accBoost, nameof(accBoost));
+                Scribe_Values.Look(ref burstLoc, nameof(burstLoc));
+                Scribe_References.Look(ref launcherTurret, nameof(launcherTurret));
+                Scribe_Values.Look(ref ticksRemaining, nameof(ticksRemaining));
+            }
         }
 
-        private List<PendingShot> pendingShots = new List<PendingShot>();
-        private int shotsFired = 0;
-        private IntVec3 lastTargetCell;
-        private Map lastTargetMap;
-
-        public OrbitalBombardmentManager(Map map) : base(map) { }
-
-        public void QueueBombardment(CompShipHeatTacCon tacCon, Map targetMap, IntVec3 targetCell)
+        public static OrbitalBombardmentManager Instance;
+        private List<PendingBombardment> active = new List<PendingBombardment>();
+        // Post-impact terrain deformation tracking for spawned projectiles
+        private struct PendingDeform
         {
-            if (tacCon == null || tacCon.myNet == null || tacCon.myNet.Turrets == null) return;
-            int tickOffset = 0;
-            foreach (var heatComp in tacCon.myNet.Turrets)
+            public Thing projectile;
+            public TerrainDef tdef;
+            public int radius;
+            public IntVec3 impactCell;
+            public Map map;
+        }
+        private readonly List<PendingDeform> pendingDeforms = new List<PendingDeform>();
+        // Runtime-only state: per-turret merge window for coalescing laser shots into one arrival
+        private readonly Dictionary<Building_ShipTurret, int> laserGroupExpireTick = new Dictionary<Building_ShipTurret, int>();
+
+        public OrbitalBombardmentManager(Game game) { Instance = this; }
+        public OrbitalBombardmentManager() { Instance = this; }
+
+        public override void ExposeData()
+        {
+            base.ExposeData();
+            Scribe_Collections.Look(ref active, "active", LookMode.Deep);
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && active == null)
             {
-                if (heatComp == null || heatComp.parent == null) continue;
-                var turret = ShipHeatNet.CESafeCastToTurret(heatComp.parent);
-                if (turret == null) continue;
-                int burstCount = 1;
-                string verbLabel = "null";
-                float missRadius = -1f;
-                float originalMissRadius = -1f;
-                try
-                {
-                    if (turret.GunCompEq != null && turret.AttackVerb != null && turret.AttackVerb.verbProps != null)
-                    {
-                        burstCount = turret.AttackVerb.verbProps.burstShotCount > 0 ? turret.AttackVerb.verbProps.burstShotCount : 1;
-                        verbLabel = !string.IsNullOrEmpty(turret.AttackVerb.verbProps.label) ? turret.AttackVerb.verbProps.label : "null";
-                        originalMissRadius = turret.AttackVerb.verbProps.ForcedMissRadius;
-                        missRadius = originalMissRadius;
-                        // Scale missRadius up to a maximum of 50 based on distance to target tile from ship
-                        int sourceTile = turret.Map.Parent.Tile;
-                        int targetTile = targetMap.Parent.Tile;
-                        int tileDistance = Mathf.Max(1, (int)Find.WorldGrid.ApproxDistanceInTiles(sourceTile, targetTile));
-                        float scaleFactor = Mathf.Clamp01(tileDistance / 200f); // 200 tiles = full scale
-                        missRadius = Mathf.Min(originalMissRadius * (1f + scaleFactor * 29f), 30f); // scale up to 30 max
-                    }
-                }
-                catch { }
-                Log.Message($"OrbitalBombardmentManager: Turret {turret.LabelCap} verb={verbLabel} burstCount={burstCount} originalMissRadius={originalMissRadius} scaledMissRadius={missRadius}");
+                active = new List<PendingBombardment>();
+            }
+        }
 
-                bool isLaser = false;
-                // Get projectile ThingDef from gun's verb
-                ThingDef projDef = null;
-                if (turret.GunCompEq != null && turret.GunCompEq.PrimaryVerb != null)
-                {
-                    projDef = turret.GunCompEq.PrimaryVerb.GetProjectile();
-                }
-                if (projDef != null)
-                {
-                    // You may need to adjust these ThingDefs to match your mod
-                    isLaser = projDef == SaveOurShip2.ResourceBank.ThingDefOf.Bullet_Fake_Laser ||
-                              projDef == SaveOurShip2.ResourceBank.ThingDefOf.Bullet_Ground_Laser ||
-                              projDef == SaveOurShip2.ResourceBank.ThingDefOf.Bullet_Fake_Psychic;
-                }
 
-                if (isLaser && burstCount > 1)
+        public override void GameComponentTick()
+        {
+            base.GameComponentTick();
+            // Process arrivals
+            if (active.Any())
+            {
+                for (int i = active.Count - 1; i >= 0; i--)
                 {
-                    // Pick a random direction for the line
-                    IntVec3 direction = new IntVec3(Rand.RangeInclusive(-1,1), 0, Rand.RangeInclusive(-1,1));
-                    if (direction.x == 0 && direction.z == 0) direction = new IntVec3(1,0,0); // avoid zero vector
-                    int spacing = 2; // cells between impacts
-
-                    // Pick a random cell within miss radius for the first shot
-                    IntVec3 startCell = targetCell;
-                    // missRadius is now loaded above from AttackVerb
-                    if (missRadius > 0.1f)
+                    var b = active[i];
+                    if (b.ticksRemaining > 0)
+                        b.ticksRemaining--;
+                    if (b.ticksRemaining <= 0)
                     {
-                        int dx = Rand.RangeInclusive(-(int)missRadius, (int)missRadius);
-                        int dz = Rand.RangeInclusive(-(int)missRadius, (int)missRadius);
-                        startCell = new IntVec3(
-                            Mathf.Clamp(targetCell.x + dx, 0, targetMap.Size.x - 1),
-                            0,
-                            Mathf.Clamp(targetCell.z + dz, 0, targetMap.Size.z - 1)
-                        );
-                    }
-                    Log.Message($"Laser burst: direction={direction} spacing={spacing} startCell={startCell}");
-
-                    for (int i = 0; i < burstCount; i++)
-                    {
-                        IntVec3 burstCell = new IntVec3(
-                            Mathf.Clamp(startCell.x + direction.x * i * spacing, 0, targetMap.Size.x - 1),
-                            0,
-                            Mathf.Clamp(startCell.z + direction.z * i * spacing, 0, targetMap.Size.z - 1)
-                        );
-                        Log.Message($"Laser burst {i + 1}/{burstCount}: burstCell={burstCell}");
-                        int delayTicks = Rand.RangeInclusive(0, 30); // 0 to 0.5 seconds
-                        pendingShots.Add(new PendingShot
-                        {
-                            turret = turret,
-                            targetMap = targetMap,
-                            targetCell = burstCell,
-                            ticksUntilFire = tickOffset + delayTicks,
-                            burstCount = 1
-                        });
-                        tickOffset += delayTicks;
-                    }
-                }
-                else
-                {
-                    int delayTicks = Rand.RangeInclusive(0, 30); // 0 to 0.5 seconds
-                    for (int i = 0; i < burstCount; i++)
-                    {
-                        IntVec3 impactCell = targetCell;
-                        if (missRadius > 0.1f)
-                        {
-                            int dx = Rand.RangeInclusive(-(int)missRadius, (int)missRadius);
-                            int dz = Rand.RangeInclusive(-(int)missRadius, (int)missRadius);
-                            impactCell = new IntVec3(
-                                Mathf.Clamp(targetCell.x + dx, 0, targetMap.Size.x - 1),
-                                0,
-                                Mathf.Clamp(targetCell.z + dz, 0, targetMap.Size.z - 1)
-                            );
-                        }
-                        pendingShots.Add(new PendingShot
-                        {
-                            turret = turret,
-                            targetMap = targetMap,
-                            targetCell = impactCell,
-                            ticksUntilFire = tickOffset + delayTicks,
-                            burstCount = 1
-                        });
-                        tickOffset += delayTicks;
+                        TryArrive(b);
+                        active.RemoveAt(i);
                     }
                 }
             }
-            lastTargetCell = targetCell;
-            lastTargetMap = targetMap;
+
+            // Apply terrain deformation for any projectiles that have finished (despawned after impact)
+            if (pendingDeforms.Count > 0)
+            {
+                for (int i = pendingDeforms.Count - 1; i >= 0; i--)
+                {
+                    var pd = pendingDeforms[i];
+                    bool spawned = pd.projectile != null && !pd.projectile.Destroyed && pd.projectile.Spawned;
+                    if (spawned)
+                    {
+                        // Track last known position to paint exactly where it ends up
+                        if (pd.projectile.Position.IsValid)
+                        {
+                            pd.impactCell = pd.projectile.Position;
+                            pd.map = pd.projectile.Map ?? pd.map;
+                            pendingDeforms[i] = pd; // write back struct
+                        }
+                        continue;
+                    }
+
+                    // Projectile despawned (likely impacted): apply paint at last recorded cell
+                    if ((OBMod.Settings == null || OBMod.Settings.enableTerrainDeformation) && pd.map != null && pd.impactCell.IsValid)
+                    {
+                        PaintTerrainArea(pd.map, pd.impactCell, pd.tdef, pd.radius);
+                    }
+                    pendingDeforms.RemoveAt(i);
+                }
+            }
         }
 
-        public override void MapComponentTick()
+        public void Enqueue(int sourceTile, int targetTile, Map targetMap, IntVec3 targetCell, ThingDef projectileDef, float missRadius, int accBoost, IntVec3 burstLoc, bool isLaser, Building_ShipTurret launcherTurret)
         {
-            if (pendingShots.Count == 0) return;
-            for (int i = pendingShots.Count - 1; i >= 0; i--)
+            var dist = Find.WorldGrid.ApproxDistanceInTiles(sourceTile, targetTile);
+            // Lasers travel much faster than projectile weapons
+            float perTile = isLaser ? LaserTravelTimePerTile : ProjectileTravelTimePerTile;
+            int baseTravelTicks = Mathf.Max(30, (int)(dist * perTile));
+
+            // Establish/extend a short merge window for lasers so early shots don't arrive before later shots enqueue
+            int now = Find.TickManager.TicksGame;
+            int minArrivalTicks = baseTravelTicks;
+            if (isLaser && launcherTurret != null)
             {
-                var shot = pendingShots[i];
-                shot.ticksUntilFire--;
-                if (shot.ticksUntilFire <= 0)
+                int expire = now + LaserMergeWindowTicks;
+                laserGroupExpireTick[launcherTurret] = expire;
+                // Enforce floor so arrival cannot occur before the merge window ends
+                int floor = expire - now;
+                if (floor > minArrivalTicks)
+                    minArrivalTicks = floor;
+            }
+
+            // DevMode cap applies as a maximum, not minimum
+            if (Prefs.DevMode)
+                minArrivalTicks = Mathf.Min(minArrivalTicks, 1200); // cap to ~20s for testing
+
+            // If this is a laser, coalesce multiple shots in the same burst into a single pending arrival
+            if (isLaser)
+            {
+                // Merge bursts by turret and target tile only; ignore per-shot differences
+                var existing = active.FirstOrDefault(x => x != null
+                    && x.isLaser && x.launcherTurret == launcherTurret);
+                if (existing != null)
                 {
-                    bool result = false;
+                    // Keep earliest ETA but never before the merge window floor
+                    int floor = 0;
+                    if (launcherTurret != null && laserGroupExpireTick.TryGetValue(launcherTurret, out var expire))
+                    {
+                        floor = Math.Max(0, expire - now);
+                    }
+                    int candidate = minArrivalTicks; // this shot's arrival candidate
+                    int earliest = Math.Min(existing.ticksRemaining, candidate);
+                    existing.ticksRemaining = Math.Max(earliest, floor);
+                    existing.targetMap = targetMap ?? existing.targetMap;
+                    existing.targetCell = targetCell; // last target wins
+                    return;
+                }
+            }
+            // Choose appropriate minimum miss radius: lasers (non-spinal) get a much tighter radius
+            float minMiss = (!isLaser)
+                ? OrbitalProjectileForcedMissRadius
+                : OrbitalLaserForcedMissRadius;
+
+            active.Add(new PendingBombardment
+            {
+                targetTile = targetTile,
+                targetMap = targetMap,
+                targetCell = targetCell,
+                projectileDef = projectileDef,
+                // Enforce miss radius per-weapon class
+                missRadius = Mathf.Max(missRadius, minMiss),
+                isLaser = isLaser,
+                accBoost = accBoost,
+                burstLoc = burstLoc,
+                launcherTurret = launcherTurret,
+                ticksRemaining = minArrivalTicks
+            });
+            Log.Message($"[SoS2-OB] Scheduled bombardment: ETA {minArrivalTicks} ticks to map {targetMap} tile {targetTile}.");
+        }
+
+        public IEnumerable<PendingBombardment> ForMap(Map map)
+        {
+            int tile = map?.Parent?.Tile ?? -1;
+            foreach (var b in active)
+            {
+                if (b.targetMap == map || (tile >= 0 && b.targetTile == tile))
+                    yield return b;
+            }
+        }
+
+        private void TryArrive(PendingBombardment b)
+        {
+            try
+            {
+                var mp = Find.WorldObjects.MapParentAt(b.targetTile);
+                var map = b.targetMap ?? mp?.Map;
+                if (map == null)
+                {
+                    Log.Warning($"[SoS2-OB] Arrival aborted: no map at tile {b.targetTile}.");
+                    return;
+                }
+
+                // Spawn/origin: pick a random cell along the TOP edge so each shot appears from space
+                IntVec3 spawnCell = new IntVec3(
+                    Rand.Range(0, map.Size.x - 1),
+                    0,
+                    map.Size.z - 1);
+
+                if (b.isLaser)
+                {
                     try
                     {
-                        Building_ShipTurret_TryOrbitalBombardment_Prefix.Prefix(shot.turret, shot.targetMap, shot.targetCell, ref result);
+                        // Scatter for orbital inaccuracy; lasers use a tighter min radius
+                        float angleB = Rand.Range(0f, 360f) * Mathf.Deg2Rad;
+                        float minR = Mathf.Max(b.missRadius, OrbitalLaserForcedMissRadius);
+                        float radiusB = Mathf.Sqrt(Rand.Value) * minR;
+                        IntVec3 beamCell = new IntVec3(
+                            Mathf.Clamp(Mathf.RoundToInt(b.targetCell.x + radiusB * Mathf.Cos(angleB)), 0, map.Size.x - 1),
+                            0,
+                            Mathf.Clamp(Mathf.RoundToInt(b.targetCell.z + radiusB * Mathf.Sin(angleB)), 0, map.Size.z - 1));
+
+                        // Resolve custom beam ThingDef from projectile or turret
+                        ThingDef beamDef = null;
+                        var projExt = b.projectileDef?.GetModExtension<OrbitalBeamDefExtension>();
+                        if (projExt != null)
+                        {
+                            beamDef = projExt.beamDef ?? (!string.IsNullOrEmpty(projExt.beamDefName) ? DefDatabase<ThingDef>.GetNamedSilentFail(projExt.beamDefName) : null);
+                        }
+                        if (beamDef == null)
+                        {
+                            var turretExt = b.launcherTurret?.def?.GetModExtension<OrbitalBeamDefExtension>();
+                            if (turretExt != null)
+                            {
+                                beamDef = turretExt.beamDef ?? (!string.IsNullOrEmpty(turretExt.beamDefName) ? DefDatabase<ThingDef>.GetNamedSilentFail(turretExt.beamDefName) : null);
+                            }
+                        }
+                        beamDef ??= ThingDefOf.PowerBeam;
+
+                        var thing = GenSpawn.Spawn(beamDef, beamCell, map);
+                        if (thing is OrbitalStrike powerBeam)
+                        {
+                            powerBeam.instigator = null;
+                            // Apply duration override if provided on the extension (projectile or turret)
+                            int? durationOverride = null;
+                            var projExtDur = b.projectileDef?.GetModExtension<OrbitalBeamDefExtension>();
+                            if (projExtDur != null && projExtDur.durationTicks.HasValue)
+                                durationOverride = projExtDur.durationTicks.Value;
+                            if (!durationOverride.HasValue)
+                            {
+                                var turretExtDur = b.launcherTurret?.def?.GetModExtension<OrbitalBeamDefExtension>();
+                                if (turretExtDur != null && turretExtDur.durationTicks.HasValue)
+                                    durationOverride = turretExtDur.durationTicks.Value;
+                            }
+                            powerBeam.duration = durationOverride ?? 1200;
+                            // Odyssey terrain deformation: spinal -> LavaDeep, non-spinal -> LavaShallow (if available)
+                            bool isSpinal = b.launcherTurret != null && b.launcherTurret.spinalComp != null;
+                            if (thing is MovingPowerBeam mpb)
+                            {
+                                var deep = DefDatabase<TerrainDef>.GetNamedSilentFail("LavaDeep");
+                                var shallow = DefDatabase<TerrainDef>.GetNamedSilentFail("LavaShallow");
+                                var choice = isSpinal ? deep : shallow;
+                                if (choice != null)
+                                {
+                                    mpb.EnableTerrainDeformation(choice);
+                                }
+                            }
+                            powerBeam.StartStrike();
+                        }
+                        else
+                        {
+                            Log.Warning("[SoS2-OB] Expected PowerBeam thing but got different type.");
+                        }
                     }
-                    catch { }
-                    Log.Message($"Burst shot fired: turret={shot.turret.LabelCap} map={shot.targetMap} cell={shot.targetCell}");
-                    if (result) shotsFired++;
-                    pendingShots.RemoveAt(i);
+                    catch (Exception ex)
+                    {
+                        Log.Warning($"[SoS2-OB] PowerBeam spawn failed: {ex}");
+                    }
                 }
                 else
                 {
-                    pendingShots[i] = shot;
+                    // Explosive and other projectiles: overhead mortar-like launch
+                    var newProjectile = (Projectile)GenSpawn.Spawn(b.projectileDef, spawnCell, map);
+
+                    // Orbital projectiles: keep a consistent forced miss without inflating by range/accuracy
+                    float spread = Mathf.Max(b.missRadius, OrbitalProjectileForcedMissRadius);
+
+                    float angle = Rand.Range(0f, 360f) * Mathf.Deg2Rad;
+                    float radius = Mathf.Sqrt(Rand.Value) * spread; // sqrt for center bias
+                    IntVec3 impactCell = new IntVec3(
+                        Mathf.Clamp(Mathf.RoundToInt(b.targetCell.x + radius * Mathf.Cos(angle)), 0, map.Size.x - 1),
+                        0,
+                        Mathf.Clamp(Mathf.RoundToInt(b.targetCell.z + radius * Mathf.Sin(angle)), 0, map.Size.z - 1));
+
+                    newProjectile.Launch(
+                        b.launcherTurret ?? (Thing)null,
+                        spawnCell.ToVector3Shifted(),
+                        impactCell,
+                        impactCell,
+                        ProjectileHitFlags.IntendedTarget,
+                        equipment: b.launcherTurret);
+
+                    // Odyssey terrain deformation on projectile impact: spinal -> LavaDeep, non-spinal -> LavaShallow
+                    bool isSpinal = b.launcherTurret != null && b.launcherTurret.spinalComp != null;
+                    var deep = DefDatabase<TerrainDef>.GetNamedSilentFail("LavaDeep");
+                    var shallow = DefDatabase<TerrainDef>.GetNamedSilentFail("LavaShallow");
+                    var tdef = isSpinal ? deep : shallow;
+                    if (tdef != null)
+                    {
+                        // Register terrain deformation to apply when the projectile despawns (post-impact)
+                        int paintR = 0;
+                        var projProps = b.projectileDef?.projectile;
+                        if (projProps != null && projProps.explosionRadius > 0f)
+                        {
+                            paintR = Mathf.FloorToInt(projProps.explosionRadius * 0.5f);
+                        }
+                        RegisterProjectileDeform(newProjectile, tdef, paintR, impactCell, map);
+                    }
                 }
+
+                Messages.Message("Orbital bombardment impact!", new GlobalTargetInfo(b.targetCell, map), MessageTypeDefOf.ThreatSmall);
+                Log.Message($"[SoS2-OB] Arrival complete on map {map} at {b.targetCell}; isLaser={b.isLaser}.");
             }
-            // When all shots are fired, show message
-            if (pendingShots.Count == 0 && shotsFired > 0 && lastTargetMap != null)
+            catch (Exception e)
             {
-                try
+                Log.Error($"[SoS2-OB] Bombardment arrival failed: {e}");
+            }
+        }
+
+        private static IntVec3 FindClosestEdgeCellLowSpread(Map map, IntVec3 targetCell)
+        {
+            Rot4 dir = FindProjectileSpawnDirection(map, targetCell);
+            if (dir == Rot4.North || dir == Rot4.South)
+            {
+                int x = targetCell.x + Rand.Range(-map.Size.x / 4, map.Size.x / 4);
+                x = Mathf.Clamp(x, 0, map.Size.x - 1);
+                int z = dir == Rot4.North ? map.Size.z - 1 : 0;
+                return new IntVec3(x, 0, z);
+            }
+            if (dir == Rot4.West || dir == Rot4.East)
+            {
+                int z = targetCell.z + Rand.Range(-map.Size.z / 4, map.Size.z / 4);
+                z = Mathf.Clamp(z, 0, map.Size.z - 1);
+                int x = dir == Rot4.East ? map.Size.x - 1 : 0;
+                return new IntVec3(x, 0, z);
+            }
+            return CellFinder.RandomEdgeCell(map);
+        }
+
+        private static Rot4 FindProjectileSpawnDirection(Map map, IntVec3 targetCell)
+        {
+            if (targetCell.x < map.Size.x / 2 && targetCell.x < targetCell.z && targetCell.x < (map.Size.z) - targetCell.z)
+                return Rot4.West;
+            if (targetCell.x > map.Size.x / 2 && map.Size.x - targetCell.x < targetCell.z && map.Size.x - targetCell.x < (map.Size.z) - targetCell.z)
+                return Rot4.East;
+            if (targetCell.z > map.Size.z / 2)
+                return Rot4.North;
+            return Rot4.South;
+        }
+
+        public void RegisterProjectileDeform(Thing projectile, TerrainDef tdef, int radius, IntVec3 impactCell, Map map)
+        {
+            if (projectile == null || tdef == null || map == null) return;
+            pendingDeforms.Add(new PendingDeform
+            {
+                projectile = projectile,
+                tdef = tdef,
+                radius = Mathf.Max(0, radius),
+                impactCell = impactCell,
+                map = map
+            });
+        }
+
+        // Helper: paint circular area of terrain with radius r around center (r <= 0 paints only center)
+        private static void PaintTerrainArea(Map map, IntVec3 center, TerrainDef tdef, int r)
+        {
+            if (map == null || tdef == null) return;
+            if (r <= 0)
+            {
+                if (center.InBounds(map)) map.terrainGrid.SetTerrain(center, tdef);
+                return;
+            }
+            int r2 = r * r;
+            for (int dz = -r; dz <= r; dz++)
+            {
+                for (int dx = -r; dx <= r; dx++)
                 {
-                    Messages.Message($"Orbital bombardment: {shotsFired} shots fired at {lastTargetCell}", new LookTargets(new GlobalTargetInfo(lastTargetCell, lastTargetMap)), MessageTypeDefOf.PositiveEvent);
+                    if (dx * dx + dz * dz > r2) continue;
+                    IntVec3 c = new IntVec3(center.x + dx, 0, center.z + dz);
+                    if (c.InBounds(map))
+                    {
+                        map.terrainGrid.SetTerrain(c, tdef);
+                    }
                 }
-                catch { }
-                shotsFired = 0;
-                lastTargetMap = null;
             }
         }
     }

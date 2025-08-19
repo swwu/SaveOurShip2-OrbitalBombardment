@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Patch>
+    <!-- Spinal laser turret uses the wide spinal beam -->
+    <Operation Class="PatchOperationAddModExtension">
+        <xpath>Defs/ThingDef[defName = "ShipSpinalBarrelLaser"]</xpath>
+        <value>
+            <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBeamDefExtension">
+                <beamDefName>PowerBeamSpinalLaser</beamDefName>
+                <durationTicks>1200</durationTicks>
+            </li>
+        </value>
+    </Operation>
+
+    <!-- Large laser turret uses the medium-width beam -->
+    <Operation Class="PatchOperationAddModExtension">
+        <xpath>Defs/ThingDef[defName = "ShipTurret_Laser_Large"]</xpath>
+        <value>
+            <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBeamDefExtension">
+                <beamDefName>PowerBeamLaser</beamDefName>
+                <durationTicks>600</durationTicks>
+            </li>
+        </value>
+    </Operation>
+
+    <!-- Small laser turret uses the narrow beam -->
+    <Operation Class="PatchOperationAddModExtension">
+        <xpath>Defs/ThingDef[defName = "ShipTurret_Laser"]</xpath>
+        <value>
+            <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBeamDefExtension">
+                <beamDefName>PowerBeamLaserSmall</beamDefName>
+                <durationTicks>300</durationTicks>
+            </li>
+        </value>
+    </Operation>
+
+    <!-- If Save Our Ship 40k addon is present, wire lance turrets to 40k beams -->
+    <Operation Class="PatchOperationFindMod">
+        <mods>
+            <li>Save our Ship 40k</li>
+        </mods>
+        <match Class="PatchOperationSequence">
+            <operations>
+                <li Class="PatchOperationAddModExtension">
+                    <xpath>Defs/ThingDef[defName = "ShipSpinalBarrel_Lance40k"]</xpath>
+                    <value>
+                        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBeamDefExtension">
+                            <beamDefName>PowerBeamSpinalLance</beamDefName>
+                            <durationTicks>1200</durationTicks>
+                        </li>
+                    </value>
+                </li>
+                <li Class="PatchOperationAddModExtension">
+                    <xpath>Defs/ThingDef[defName = "ShipTurret_Lance"]</xpath>
+                    <value>
+                        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBeamDefExtension">
+                            <beamDefName>PowerBeamLance</beamDefName>
+                            <durationTicks>900</durationTicks>
+                        </li>
+                    </value>
+                </li>
+            </operations>
+        </match>
+    </Operation>
+</Patch>
