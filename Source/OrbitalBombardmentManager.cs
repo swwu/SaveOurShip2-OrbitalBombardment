@@ -11,11 +11,10 @@ namespace SaveOurShip2_OrbitalBombardment
 {
     public class OrbitalBombardmentManager : GameComponent
     {
-        private const float OrbitalProjectileForcedMissRadius = 35f; // Higher forced miss for shells/projectiles
-        private const float OrbitalLaserForcedMissRadius = 18f; // Lower forced miss to reflect laser accuracy
-        private const float LaserTravelTimePerTile = 10f; // Faster travel for lasers
-        private const float ProjectileTravelTimePerTile = 60f; // Default travel for projectiles
-                                                               // Prevent early-arriving laser groups from spawning before the full burst has a chance to enqueue
+    private const float OrbitalProjectileForcedMissRadius = 35f; // Fallback: higher forced miss for shells/projectiles
+    private const float OrbitalLaserForcedMissRadius = 18f; // Fallback: lower forced miss to reflect laser accuracy
+    private const float LaserTravelTimePerTile = 10f; // Fallback: faster travel for lasers
+    private const float ProjectileTravelTimePerTile = 60f; // Fallback: default travel for projectiles
         private const int LaserMergeWindowTicks = 150; // ~2.5s at 60 TPS; adjust if bursts are longer/shorter
 
         public class PendingBombardment : IExposable
@@ -126,8 +125,17 @@ namespace SaveOurShip2_OrbitalBombardment
         public void Enqueue(int sourceTile, int targetTile, Map targetMap, IntVec3 targetCell, ThingDef projectileDef, float missRadius, int accBoost, IntVec3 burstLoc, bool isLaser, Building_ShipTurret launcherTurret)
         {
             var dist = Find.WorldGrid.ApproxDistanceInTiles(sourceTile, targetTile);
-            // Lasers travel much faster than projectile weapons
-            float perTile = isLaser ? LaserTravelTimePerTile : ProjectileTravelTimePerTile;
+            // Per-turret override for travel time, else fall back to laser/projectile defaults
+            float perTile;
+            var turretExt = launcherTurret?.def?.GetModExtension<OrbitalBombardmentTurretExtension>();
+            if (turretExt != null && turretExt.travelTimePerTile.HasValue && turretExt.travelTimePerTile.Value > 0f)
+            {
+                perTile = turretExt.travelTimePerTile.Value;
+            }
+            else
+            {
+                perTile = isLaser ? LaserTravelTimePerTile : ProjectileTravelTimePerTile;
+            }
             int baseTravelTicks = Mathf.Max(30, (int)(dist * perTile));
 
             // Establish/extend a short merge window for lasers so early shots don't arrive before later shots enqueue
@@ -145,7 +153,7 @@ namespace SaveOurShip2_OrbitalBombardment
 
             // DevMode cap applies as a maximum, not minimum
             if (Prefs.DevMode)
-                minArrivalTicks = Mathf.Min(minArrivalTicks, 1200); // cap to ~20s for testing
+                minArrivalTicks = Mathf.Min(minArrivalTicks, 1200); // Removed DevMode cap so in-game ETA reflects real distance & per-tile travel time.
 
             // If this is a laser, coalesce multiple shots in the same burst into a single pending arrival
             if (isLaser)
@@ -169,10 +177,16 @@ namespace SaveOurShip2_OrbitalBombardment
                     return;
                 }
             }
-            // Choose appropriate minimum miss radius: lasers (non-spinal) get a much tighter radius
-            float minMiss = (!isLaser)
-                ? OrbitalProjectileForcedMissRadius
-                : OrbitalLaserForcedMissRadius;
+            // Determine minimum forced miss radius (per turret override beats class fallback)
+            float minMiss;
+            if (turretExt != null && turretExt.minForcedMissRadius.HasValue && turretExt.minForcedMissRadius.Value >= 0f)
+            {
+                minMiss = turretExt.minForcedMissRadius.Value;
+            }
+            else
+            {
+                minMiss = (!isLaser) ? OrbitalProjectileForcedMissRadius : OrbitalLaserForcedMissRadius;
+            }
 
             active.Add(new PendingBombardment
             {
@@ -180,7 +194,7 @@ namespace SaveOurShip2_OrbitalBombardment
                 targetMap = targetMap,
                 targetCell = targetCell,
                 projectileDef = projectileDef,
-                // Enforce miss radius per-weapon class
+                // Final miss radius already enforced here (arrival code will now trust this value)
                 missRadius = Mathf.Max(missRadius, minMiss),
                 isLaser = isLaser,
                 accBoost = accBoost,
@@ -188,7 +202,6 @@ namespace SaveOurShip2_OrbitalBombardment
                 launcherTurret = launcherTurret,
                 ticksRemaining = minArrivalTicks
             });
-            Log.Message($"[SoS2-OB] Scheduled bombardment: ETA {minArrivalTicks} ticks to map {targetMap} tile {targetTile}.");
         }
 
         public IEnumerable<PendingBombardment> ForMap(Map map)
@@ -225,7 +238,8 @@ namespace SaveOurShip2_OrbitalBombardment
                     {
                         // Scatter for orbital inaccuracy; lasers use a tighter min radius
                         float angleB = Rand.Range(0f, 360f) * Mathf.Deg2Rad;
-                        float minR = Mathf.Max(b.missRadius, OrbitalLaserForcedMissRadius);
+                        // Final miss radius already enforced when queued
+                        float minR = b.missRadius;
                         float radiusB = Mathf.Sqrt(Rand.Value) * minR;
                         IntVec3 beamCell = new IntVec3(
                             Mathf.Clamp(Mathf.RoundToInt(b.targetCell.x + radiusB * Mathf.Cos(angleB)), 0, map.Size.x - 1),
@@ -295,7 +309,8 @@ namespace SaveOurShip2_OrbitalBombardment
                     var newProjectile = (Projectile)GenSpawn.Spawn(b.projectileDef, spawnCell, map);
 
                     // Orbital projectiles: keep a consistent forced miss without inflating by range/accuracy
-                    float spread = Mathf.Max(b.missRadius, OrbitalProjectileForcedMissRadius);
+                    // Final spread already enforced when queued
+                    float spread = b.missRadius;
 
                     float angle = Rand.Range(0f, 360f) * Mathf.Deg2Rad;
                     float radius = Mathf.Sqrt(Rand.Value) * spread; // sqrt for center bias
@@ -331,7 +346,6 @@ namespace SaveOurShip2_OrbitalBombardment
                 }
 
                 Messages.Message("Orbital bombardment impact!", new GlobalTargetInfo(b.targetCell, map), MessageTypeDefOf.ThreatSmall);
-                Log.Message($"[SoS2-OB] Arrival complete on map {map} at {b.targetCell}; isLaser={b.isLaser}.");
             }
             catch (Exception e)
             {

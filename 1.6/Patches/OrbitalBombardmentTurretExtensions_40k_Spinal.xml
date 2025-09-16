@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Patch>
+  <!-- Orbital bombardment parameter extensions for Save Our Ship 40k spinal weapons.
+       Entire patch gated by presence of SaveOurShip40k mod. -->
+
+  <Operation Class="PatchOperationFindMod">
+    <mods>
+      <li>SaveOurShip40k</li>
+    </mods>
+    <match Class="PatchOperationSequence">
+      <operations>
+        <li Class="PatchOperationConditional">
+          <xpath>Defs/ThingDef[defName="ShipSpinalBarrel_Lance40k"]</xpath>
+          <match Class="PatchOperationSequence">
+            <operations>
+              <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipSpinalBarrel_Lance40k" and not(modExtensions)]</xpath><value><modExtensions/></value></li>
+              <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipSpinalBarrel_Lance40k"]/modExtensions</xpath><value>
+                <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+                  <isLaser>true</isLaser>
+                  <travelTimePerTile>10</travelTimePerTile>
+                  <minForcedMissRadius>16</minForcedMissRadius>
+                </li>
+              </value></li>
+            </operations>
+          </match>
+        </li>
+      </operations>
+    </match>
+  </Operation>
+</Patch>

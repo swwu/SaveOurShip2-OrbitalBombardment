@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Patch>
+  <!-- Orbital bombardment parameter extensions for Save Our Ship 40k optional mod turrets.
+       Entire patch gated behind presence of the Save Our Ship 40k mod package. -->
+
+  <Operation Class="PatchOperationFindMod">
+    <mods>
+      <li>SaveOurShip40k</li>
+    </mods>
+    <match Class="PatchOperationSequence">
+      <operations>
+        <!-- Macrocannon -->
+        <li Class="PatchOperationConditional">
+          <xpath>Defs/ThingDef[defName="ShipTurret_Macrocannon"]</xpath>
+          <match Class="PatchOperationSequence">
+            <operations>
+              <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Macrocannon" and not(modExtensions)]</xpath><value><modExtensions/></value></li>
+              <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Macrocannon"]/modExtensions</xpath><value>
+                <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+                  <travelTimePerTile>70</travelTimePerTile>
+                  <minForcedMissRadius>45</minForcedMissRadius>
+                </li>
+              </value></li>
+            </operations>
+          </match>
+        </li>
+        <!-- Lance -->
+        <li Class="PatchOperationConditional">
+          <xpath>Defs/ThingDef[defName="ShipTurret_Lance"]</xpath>
+          <match Class="PatchOperationSequence">
+            <operations>
+              <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Lance" and not(modExtensions)]</xpath><value><modExtensions/></value></li>
+              <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Lance"]/modExtensions</xpath><value>
+                <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+                  <isLaser>true</isLaser>
+                  <travelTimePerTile>10</travelTimePerTile>
+                  <minForcedMissRadius>16</minForcedMissRadius>
+                </li>
+              </value></li>
+            </operations>
+          </match>
+        </li>
+      </operations>
+    </match>
+  </Operation>
+</Patch>

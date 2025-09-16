@@ -1,6 +1,6 @@
-C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\SaveOurShip2-OrbitalBombardment\1.6\Assemblies\SaveOurShip2-OrbitalBombardment.dll
-C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\SaveOurShip2-OrbitalBombardment\1.6\Assemblies\SaveOurShip2-OrbitalBombardment.pdb
 C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\SaveOurShip2-OrbitalBombardment\Source\obj\Release\SaveOurShip2-OrbitalBombardment.csproj.AssemblyReference.cache
 C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\SaveOurShip2-OrbitalBombardment\Source\obj\Release\SaveOurShip2-OrbitalBombardment.csproj.CoreCompileInputs.cache
+C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\SaveOurShip2-OrbitalBombardment\1.6\Assemblies\SaveOurShip2-OrbitalBombardment.dll
+C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\SaveOurShip2-OrbitalBombardment\1.6\Assemblies\SaveOurShip2-OrbitalBombardment.pdb
 C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\SaveOurShip2-OrbitalBombardment\Source\obj\Release\SaveOurShip2-OrbitalBombardment.dll
 C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\SaveOurShip2-OrbitalBombardment\Source\obj\Release\SaveOurShip2-OrbitalBombardment.pdb

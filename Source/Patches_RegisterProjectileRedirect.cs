@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
@@ -48,20 +50,29 @@ namespace SaveOurShip2_OrbitalBombardment
     {
         public static void Postfix(Building_ShipTurret __instance)
         {
+            // Auto-end any lingering redirect session once the burst is over
+            if (OrbitalRedirectSession.Active && OrbitalRedirectSession.SourceTurret == __instance)
+            {
+                var v = __instance.AttackVerb;
+                if (v == null || v.state != VerbState.Bursting)
+                {
+                    OrbitalRedirectSession.End();
+                }
+            }
             // Only act if a bombardment target is queued
             if (!OrbitalBombardmentState.TryGet(__instance, out var targetMap, out var targetCell)) return;
 
             // Respect basic availability similar to Tick(): avoid protected IsStunned; use public Active flag instead
-            if (!__instance.Spawned) return;
-            if (!__instance.Active) return;
+            if (!__instance.Spawned) { return; }
+            if (!__instance.Active) { return; }
             if (__instance.GunCompEq?.PrimaryVerb == null) { OrbitalBombardmentState.Clear(__instance); return; }
             if (__instance.PlayerControlled && __instance.holdFire) { OrbitalBombardmentState.Clear(__instance); return; }
             if (__instance.PointDefenseMode) { OrbitalBombardmentState.Clear(__instance); return; }
             if (!__instance.AttackVerb.Available()) { OrbitalBombardmentState.Clear(__instance); return; }
 
             // If on cooldown or mid-burst, let normal cycle progress
-            if (__instance.AttackVerb.state == VerbState.Bursting) return;
-            if (__instance.burstCooldownTicksLeft > 0) return;
+            if (__instance.AttackVerb.state == VerbState.Bursting) { return; }
+            if (__instance.burstCooldownTicksLeft > 0) { return; }
 
             // Queue once, then clear to avoid repeated volleys
             OrbitalBombardmentState.Clear(__instance);
@@ -145,10 +156,7 @@ namespace SaveOurShip2_OrbitalBombardment
             // Use the turret’s normal burst initiation path akin to BeginBurst() gating
             // Aim at a local edge cell and try to cast one burst
             var localTarget = new LocalTargetInfo(edgeCell);
-            __instance.AttackVerb.TryStartCastOn(localTarget, false, true, false);
-
-            // Apply cooldown like BeginBurst to avoid turbo firing
-            __instance.BurstComplete();
+            bool cast = __instance.AttackVerb.TryStartCastOn(localTarget, false, true, false);
         }
     }
 
@@ -157,6 +165,8 @@ namespace SaveOurShip2_OrbitalBombardment
         public static bool ShouldRedirect(Building_ShipTurret turret)
         {
             if (turret == null) return false;
+            // Only redirect for player-owned turrets; enemy ship turrets should behave normally.
+            if (turret.Faction == null || !turret.Faction.IsPlayer) return false;
             return OrbitalRedirectSession.Active || OrbitalBombardmentState.HasTarget(turret);
         }
 
@@ -166,18 +176,7 @@ namespace SaveOurShip2_OrbitalBombardment
             var targetCell = OrbitalRedirectSession.TargetCell;
             var sourceTile = turret.Map.Parent.Tile;
             var targetTile = targetMap.Parent.Tile;
-            bool isLaser = false;
-            var projDef = spawnProjectile;
-            var verbSpawn = verb.verbProps.spawnDef;
-            if (verbSpawn == ResourceBank.ThingDefOf.Bullet_Fake_Laser ||
-                projDef == DefDatabase<ThingDef>.GetNamedSilentFail("Proj_ShipSpinalLance40k") ||
-                projDef == DefDatabase<ThingDef>.GetNamedSilentFail("Proj_ShipTurretLance") ||
-                projDef == ResourceBank.ThingDefOf.Bullet_Fake_Laser ||
-                projDef == ResourceBank.ThingDefOf.Bullet_Ground_Laser ||
-                projDef == ResourceBank.ThingDefOf.Bullet_Fake_Psychic)
-            {
-                isLaser = true;
-            }
+            bool isLaser = turret.def?.GetModExtension<OrbitalBombardmentTurretExtension>()?.isLaser ?? false;
 
             OrbitalBombardmentManager.Instance?.Enqueue(
                 sourceTile,
@@ -196,25 +195,22 @@ namespace SaveOurShip2_OrbitalBombardment
     // Session-scoped state: when non-null, any RegisterProjectile will be redirected into an orbital world object.
     internal static class OrbitalRedirectSession
     {
-        private static int expireTick;
         public static Building_ShipTurret SourceTurret { get; private set; }
         public static Map TargetMap { get; private set; }
         public static IntVec3 TargetCell { get; private set; }
-
-        public static bool Active => SourceTurret != null && TargetMap != null && Find.TickManager.TicksGame < expireTick;
+        public static bool Active => SourceTurret != null && TargetMap != null;
 
         public static void Begin(Building_ShipTurret turret, Map targetMap, IntVec3 targetCell)
         {
             SourceTurret = turret;
             TargetMap = targetMap;
             TargetCell = targetCell;
-            // expire later to cover turret warmup and multi-burst delays
-            expireTick = Find.TickManager.TicksGame + 2400; // 40 seconds
         }
 
         public static void End()
         {
-            // Unused (session auto-expires). Intentionally left empty.
+            SourceTurret = null;
+            TargetMap = null;
         }
     }
 
@@ -224,13 +220,150 @@ namespace SaveOurShip2_OrbitalBombardment
         // Prevent normal ship-combat registration and create a traveling world object instead when session is active.
         public static bool Prefix(Verb_LaunchProjectileShip __instance, Building_ShipTurret turret, LocalTargetInfo target, ThingDef spawnProjectile, IntVec3 burstLoc)
         {
-            if (!RegisterRedirectHelper.ShouldRedirect(turret))
-                return true; // not our flow
+            // Only redirect if this projectile belongs to the exact source turret currently in session
+            bool should = RegisterRedirectHelper.ShouldRedirect(turret);
+            // Try to resolve owning turret from the verb up-front for recovery
+            Building_ShipTurret ownerFromVerbEarly = null;
+            try
+            {
+                var fieldsEarly = __instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                foreach (var f in fieldsEarly)
+                {
+                    if (typeof(Building_ShipTurret).IsAssignableFrom(f.FieldType))
+                    {
+                        ownerFromVerbEarly = f.GetValue(__instance) as Building_ShipTurret;
+                        if (ownerFromVerbEarly != null) break;
+                    }
+                }
+            }
+            catch { }
+
+            if (!should || turret != OrbitalRedirectSession.SourceTurret)
+            {
+                // Try to resolve owning turret from the verb itself
+                try
+                {
+                    Building_ShipTurret ownerFromVerb = ownerFromVerbEarly;
+                    // 1) Look for any private field of type Building_ShipTurret
+                    if (ownerFromVerb == null)
+                    {
+                        var fields = __instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                        foreach (var f in fields)
+                        {
+                            if (typeof(Building_ShipTurret).IsAssignableFrom(f.FieldType))
+                            {
+                                ownerFromVerb = f.GetValue(__instance) as Building_ShipTurret;
+                                if (ownerFromVerb != null) break;
+                            }
+                        }
+                    }
+                    // 2) Try Verb base 'Caster' property and walk up holders
+                    if (ownerFromVerb == null)
+                    {
+                        var casterProp = typeof(Verb).GetProperty("Caster", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                        var caster = casterProp?.GetValue(__instance) as Thing;
+                        Thing holder = caster;
+                        int hops = 0;
+                        while (holder != null && hops++ < 6)
+                        {
+                            if (holder is Building_ShipTurret bst)
+                            {
+                                ownerFromVerb = bst; break;
+                            }
+                            holder = holder.ParentHolder as Thing;
+                        }
+                    }
+                    // Recovery A: if verb's owner matches the active session's turret, redirect immediately using the active session
+                    if (ownerFromVerb != null && ownerFromVerb == OrbitalRedirectSession.SourceTurret && OrbitalRedirectSession.Active)
+                    {
+                        try
+                        {
+                            RegisterRedirectHelper.CreateWorldObject(__instance, ownerFromVerb, spawnProjectile, burstLoc, null, null);
+                            return false;
+                        }
+                        catch (Exception e3)
+                        {
+                            Log.Error("[SoS2-OB] Recovery redirect (active session) failed: " + e3);
+                        }
+                    }
+
+                    // Recovery B: if we have an owner turret and it has a queued bombardment target, start a new session and redirect now
+                    if (ownerFromVerb != null && OrbitalBombardmentState.TryGet(ownerFromVerb, out var recMap, out var recCell))
+                    {
+                        OrbitalRedirectSession.Begin(ownerFromVerb, recMap, recCell);
+                        // Redirect this projectile immediately
+                        try
+                        {
+                            var tgtTile = OrbitalRedirectSession.TargetMap?.Parent?.Tile;
+                            RegisterRedirectHelper.CreateWorldObject(__instance, ownerFromVerb, spawnProjectile, burstLoc, null, null);
+                        }
+                        catch (Exception e2)
+                        {
+                            Log.Error("[SoS2-OB] Recovery redirect failed: " + e2);
+                        }
+                        return false; // skip original
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("[SoS2-OB] Recovery redirect failed: " + ex);
+                }
+                // Additional defensive: inspect verb internal fields when we are NOT redirecting; cancel invalid bursts to avoid NRE spam
+                try
+                {
+                    if (__instance != null && turret != null)
+                    {
+                        var type = __instance.GetType();
+                        var fields = type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                        bool missingShipCombatContext = false;
+                        foreach (var f in fields)
+                        {
+                            object val = null;
+                            try { val = f.GetValue(__instance); } catch { }
+                            if (val == null)
+                            {
+                                if (f.Name == "maneuver" || f.Name == "tool" || f.Name == "controlGroup")
+                                    missingShipCombatContext = true;
+                            }
+                        }
+
+                        // If this burst is occurring outside ship-combat context and we could not recover/redirect, cancel it to prevent NRE spam.
+                        if (missingShipCombatContext)
+                        {
+                            try
+                            {
+                                var fState = fields.FirstOrDefault(fi => fi.Name == "state");
+                                var fBurst = fields.FirstOrDefault(fi => fi.Name == "burstShotsLeft");
+                                if (fState != null && fBurst != null)
+                                {
+                                    fBurst.SetValue(__instance, 0);
+                                    fState.SetValue(__instance, VerbState.Idle);
+                                    return false; // skip original to avoid NRE
+                                }
+                            }
+                            catch (Exception ex2)
+                            {
+                                Log.Error("[SoS2-OB] Cancel invalid burst failed: " + ex2);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("[SoS2-OB] Reflection failed: " + ex);
+                }
+                return true; // proceed with original
+            }
 
             try
             {
-                Log.Message($"[SoS2-OB] Redirecting projectile from turret {turret?.LabelCap} at map {turret?.Map?.ToString()} to world target tile {OrbitalRedirectSession.TargetMap?.Parent?.Tile} cell {OrbitalRedirectSession.TargetCell} proj {spawnProjectile?.defName}");
                 RegisterRedirectHelper.CreateWorldObject(__instance, turret, spawnProjectile, burstLoc, null, null);
+                // For lasers: coalesce to one beam per burst; for non-lasers: keep session active to capture all shots
+                bool isLaser = turret.def?.GetModExtension<OrbitalBombardmentTurretExtension>()?.isLaser ?? false;
+                if (isLaser)
+                {
+                    OrbitalRedirectSession.End();
+                }
             }
             catch (Exception e)
             {

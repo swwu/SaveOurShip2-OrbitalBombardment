@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Patch>
+  <!-- Adds OrbitalBombardmentTurretExtension to Save Our Ship 2 turret/building ThingDefs.
+       Values chosen:
+         Laser-class: travelTimePerTile=10 (fast), minForcedMissRadius=18, isLaser=true
+         Standard projectile: travelTimePerTile=60, minForcedMissRadius=35
+         Railgun (kinetic high-velocity): travelTimePerTile=45, minForcedMissRadius=35
+         Torpedoes (slow): travelTimePerTile=90, minForcedMissRadius=45
+       Adjust later as desired; these override fallback constants only when specified. -->
+
+  <!-- Autocannon turrets (projectile) -->
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_ACI" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_ACI"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_ACI"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>60</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_ACII" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_ACII"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_ACII"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>60</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_ACIII" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_ACIII"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_ACIII"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>60</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+
+  <!-- Plasma turrets (projectile, medium range) -->
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_Plasma" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_Plasma"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Plasma"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>60</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_Plasma_Large" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_Plasma_Large"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Plasma_Large"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>60</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+
+  <!-- Railgun (kinetic) turrets (faster travel) -->
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_Kinetic" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_Kinetic"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Kinetic"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>45</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_Kinetic_Large" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_Kinetic_Large"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Kinetic_Large"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>45</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+
+  <!-- Laser turrets -->
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_Laser" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_Laser"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Laser"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <isLaser>true</isLaser>
+          <travelTimePerTile>10</travelTimePerTile>
+          <minForcedMissRadius>18</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTurret_Laser_Large" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTurret_Laser_Large"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Laser_Large"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <isLaser>true</isLaser>
+          <travelTimePerTile>10</travelTimePerTile>
+          <minForcedMissRadius>18</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+
+  <!-- Spinal barrels -->
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipSpinalBarrelLaser" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipSpinalBarrelLaser"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipSpinalBarrelLaser"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <isLaser>true</isLaser>
+          <travelTimePerTile>10</travelTimePerTile>
+          <minForcedMissRadius>18</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipSpinalBarrelPlasma" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipSpinalBarrelPlasma"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipSpinalBarrelPlasma"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>60</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipSpinalBarrelKinetic" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipSpinalBarrelKinetic"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipSpinalBarrelKinetic"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>45</travelTimePerTile>
+          <minForcedMissRadius>35</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+
+  <!-- Torpedo launchers (very slow, higher miss floor) -->
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTorpedoOne" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTorpedoOne"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTorpedoOne"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>90</travelTimePerTile>
+          <minForcedMissRadius>45</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTorpedoTwo" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTorpedoTwo"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTorpedoTwo"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>90</travelTimePerTile>
+          <minForcedMissRadius>45</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+  <Operation Class="PatchOperationSequence">
+    <operations>
+      <li Class="PatchOperationConditional">
+        <xpath>Defs/ThingDef[defName="ShipTorpedoSix" and not(modExtensions)]</xpath>
+        <match Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="ShipTorpedoSix"]</xpath>
+          <value><modExtensions/></value>
+        </match>
+      </li>
+      <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTorpedoSix"]/modExtensions</xpath><value>
+        <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
+          <travelTimePerTile>90</travelTimePerTile>
+          <minForcedMissRadius>45</minForcedMissRadius>
+        </li>
+      </value></li>
+    </operations>
+  </Operation>
+</Patch>

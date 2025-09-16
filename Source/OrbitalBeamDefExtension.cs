@@ -8,6 +8,6 @@ namespace SaveOurShip2_OrbitalBombardment
     {
         public ThingDef beamDef;       // Direct reference to a ThingDef (preferred)
         public string beamDefName;     // Optional: defName fallback if direct reference isn’t used
-    public int? durationTicks;     // Optional: override beam duration in ticks
+        public int? durationTicks;     // Optional: override beam duration in ticks
     }
 }
