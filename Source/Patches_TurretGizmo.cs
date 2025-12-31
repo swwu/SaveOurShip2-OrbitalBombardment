@@ -72,6 +72,14 @@ namespace SaveOurShip2_OrbitalBombardment
             var targetMap = mp?.Map;
             if (targetMap == null) return false;
 
+            // Disallow targeting orbital/space maps (SoS2 OuterSpace) as they can cause crashes on arrival
+            var biomeName = targetMap.Biome?.defName;
+            if (!string.IsNullOrEmpty(biomeName) && biomeName.IndexOf("OuterSpace", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                Messages.Message("Orbital bombardment cannot target orbital/space maps.", new GlobalTargetInfo(worldTarget.Tile), MessageTypeDefOf.RejectInput);
+                return false;
+            }
+
             // Set current map and jump camera to the center of the destination map
             Current.Game.CurrentMap = targetMap;
             var centerCell = new IntVec3(targetMap.Size.x / 2, 0, targetMap.Size.z / 2);
@@ -93,7 +101,7 @@ namespace SaveOurShip2_OrbitalBombardment
             return true;
         }
 
-    private static void QueueBombardmentFromSelectedTurrets(List<Building_ShipTurret> turrets, Map targetMap, IntVec3 targetCell)
+        private static void QueueBombardmentFromSelectedTurrets(List<Building_ShipTurret> turrets, Map targetMap, IntVec3 targetCell)
         {
             int fired = 0;
             foreach (var t in turrets)
@@ -101,9 +109,9 @@ namespace SaveOurShip2_OrbitalBombardment
                 if (t == null || t.Map == null) continue;
                 if (t.GunCompEq?.PrimaryVerb == null) continue;
 
-        // Queue one volley for this turret via Tick postfix
-        OrbitalBombardmentState.SetTarget(t, targetMap, targetCell);
-        fired++;
+                // Queue one volley for this turret via Tick postfix
+                OrbitalBombardmentState.SetTarget(t, targetMap, targetCell);
+                fired++;
             }
 
             if (fired == 0)

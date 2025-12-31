@@ -60,6 +60,8 @@
         <Compile Include="OBMod.cs" />
         <Compile Include="Patches_TurretGizmo.cs" />
         <Compile Include="Patches_RegisterProjectileRedirect.cs" />
+        <Compile Include="Patches_ShipSensorAllowBases.cs" />
+        <Compile Include="Patches_CombatExtended.cs" />
         <Compile Include="OrbitalBombardmentTurretExtension.cs" />
         <Compile Include="OrbitalBombardmentManager.cs" />
         <Compile Include="OrbitalBombardmentMapOverlay.cs" />

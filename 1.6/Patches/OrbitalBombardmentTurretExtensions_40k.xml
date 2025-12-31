@@ -17,7 +17,7 @@
               <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Macrocannon" and not(modExtensions)]</xpath><value><modExtensions/></value></li>
               <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Macrocannon"]/modExtensions</xpath><value>
                 <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
-                  <travelTimePerTile>70</travelTimePerTile>
+                  <travelTimePerTile>10</travelTimePerTile>
                   <minForcedMissRadius>45</minForcedMissRadius>
                 </li>
               </value></li>
@@ -33,7 +33,7 @@
               <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipTurret_Lance"]/modExtensions</xpath><value>
                 <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
                   <isLaser>true</isLaser>
-                  <travelTimePerTile>10</travelTimePerTile>
+                  <travelTimePerTile>0.1</travelTimePerTile>
                   <minForcedMissRadius>16</minForcedMissRadius>
                 </li>
               </value></li>

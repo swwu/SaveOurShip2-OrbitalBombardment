@@ -11,10 +11,10 @@ namespace SaveOurShip2_OrbitalBombardment
 {
     public class OrbitalBombardmentManager : GameComponent
     {
-    private const float OrbitalProjectileForcedMissRadius = 35f; // Fallback: higher forced miss for shells/projectiles
-    private const float OrbitalLaserForcedMissRadius = 18f; // Fallback: lower forced miss to reflect laser accuracy
-    private const float LaserTravelTimePerTile = 10f; // Fallback: faster travel for lasers
-    private const float ProjectileTravelTimePerTile = 60f; // Fallback: default travel for projectiles
+        private const float OrbitalProjectileForcedMissRadius = 35f; // Fallback: higher forced miss for shells/projectiles
+        private const float OrbitalLaserForcedMissRadius = 18f; // Fallback: lower forced miss to reflect laser accuracy
+        private const float LaserTravelTimePerTile = 10f; // Fallback: faster travel for lasers
+        private const float ProjectileTravelTimePerTile = 60f; // Fallback: default travel for projectiles
         private const int LaserMergeWindowTicks = 150; // ~2.5s at 60 TPS; adjust if bursts are longer/shorter
 
         public class PendingBombardment : IExposable
@@ -124,6 +124,22 @@ namespace SaveOurShip2_OrbitalBombardment
 
         public void Enqueue(int sourceTile, int targetTile, Map targetMap, IntVec3 targetCell, ThingDef projectileDef, float missRadius, int accBoost, IntVec3 burstLoc, bool isLaser, Building_ShipTurret launcherTurret)
         {
+            // Apply SoS2-style bounty penalty per shot fired at planetside targets
+            try
+            {
+                if (OBMod.Settings == null || !OBMod.Settings.enableBountyPenalty) { }
+                else
+                {
+                    // Skip space/orbital maps (OuterSpace) from bounty if any slip through selection
+                    var biomeNameBounty = targetMap?.Biome?.defName;
+                    if (string.IsNullOrEmpty(biomeNameBounty) || biomeNameBounty.IndexOf("OuterSpace", StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        ShipInteriorMod2.WorldComp.PlayerFactionBounty += Mathf.Max(0, OBMod.Settings.bountyPerShot);
+                    }
+                }
+            }
+            catch { /* Defensive: if SoS2 API surface changes, ignore bounty update rather than break firing */ }
+
             var dist = Find.WorldGrid.ApproxDistanceInTiles(sourceTile, targetTile);
             // Per-turret override for travel time, else fall back to laser/projectile defaults
             float perTile;

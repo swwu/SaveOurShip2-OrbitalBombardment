@@ -17,7 +17,7 @@
               <li Class="PatchOperationAdd"><xpath>Defs/ThingDef[defName="ShipSpinalBarrel_Lance40k"]/modExtensions</xpath><value>
                 <li Class="SaveOurShip2_OrbitalBombardment.OrbitalBombardmentTurretExtension">
                   <isLaser>true</isLaser>
-                  <travelTimePerTile>10</travelTimePerTile>
+                  <travelTimePerTile>0.1</travelTimePerTile>
                   <minForcedMissRadius>16</minForcedMissRadius>
                 </li>
               </value></li>
